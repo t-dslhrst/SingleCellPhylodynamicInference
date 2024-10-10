@@ -64,8 +64,11 @@ Computed the joint probability p_1(i|τ_s, τ_e) that a lineage starting at time
 - The probability of having `i` generations.
 """
 function p_lineage_and_gens(i::Integer, τ_s::Real, τ_e::Real, δ::Real, ρ::Real, β::Real=1.0)
-    if i <= 20
+    if i==0
+        return exp(-(β+δ)*(τ_s-τ_e))
+    elseif i <= 20
         expo = -(β+δ)*(τ_s-τ_e)
+        # if the exponent is too large, compute the logarithm of the terms
         if expo <= - 600.0
             log_result = expo + i*log(mean_generations(τ_s, τ_e, δ, ρ, β)) - log_facts[i]
             return exp(log_result)
@@ -73,6 +76,7 @@ function p_lineage_and_gens(i::Integer, τ_s::Real, τ_e::Real, δ::Real, ρ::Re
             return exp(expo) * mean_generations(τ_s, τ_e, δ, ρ, β)^i / factorial(i)
         end
     else
+        # if i is too large, compute the logarithm of the terms
         log_result = -(β+δ)*(τ_s-τ_e) + i*log(mean_generations(τ_s, τ_e, δ, ρ, β)) - log_facts[i]
         return exp(log_result)
     end
@@ -246,7 +250,7 @@ function infer_parameters(tree::SimpleWeightedGraph{T, T}, ρ::Real=1.0; q_0::Re
         else
         
             # Compute the log-likelihood
-            L = compute_tree_likelihood(tree, q_, μ_; ρ=ρ_, norm=norm, kwargs...)
+            L = compute_param_likelihood(tree, q_, μ_; ρ=ρ_, norm=norm, kwargs...)
 
             # Check if `norm` needs to be adapted. If so, repeat with the new value.
             while isnan(L) || abs(L)==Inf
@@ -258,7 +262,7 @@ function infer_parameters(tree::SimpleWeightedGraph{T, T}, ρ::Real=1.0; q_0::Re
                     norm *= 0.9
                 end
                 println("norm changed to $(norm)")
-                L = compute_tree_likelihood(tree, q_, μ_; ρ=ρ_, norm=norm, kwargs...)
+                L = compute_param_likelihood(tree, q_, μ_; ρ=ρ_, norm=norm, kwargs...)
             end
             return - L
         end
