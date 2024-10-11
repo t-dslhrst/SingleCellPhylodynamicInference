@@ -50,7 +50,8 @@ const log_facts = cumsum(log.(1:1000000))
 
 
 """
-Computed the joint probability p_1(i|τ_s, τ_e) that a lineage starting at time `τ_s` and runs until time `τ_e` with `i` generations in between (eq. (1) & (7)).
+Computed the joint probability p_1(i|τ_s, τ_e) that a lineage starting at time `τ_s` and runs until time `τ_e`
+with `i` generations in between, non of which lead to sampled clades (eq. (1) & (7)).
 
 # Arguments:
 - `i`: Number of generations.
@@ -61,7 +62,7 @@ Computed the joint probability p_1(i|τ_s, τ_e) that a lineage starting at time
 - `β`: Birth rate (default is 1.0).
 
 # Returns:
-- The probability of having `i` generations.
+- The probability of the lineage running until τ_s with `i` hidden generations.
 """
 function p_lineage_and_gens(i::Integer, τ_s::Real, τ_e::Real, δ::Real, ρ::Real, β::Real=1.0)
     if i==0
@@ -111,7 +112,7 @@ Compute the parameter log-likelihood for a given tree.
 # Arguments:
 - `tree`: Phylogenetic tree (as a `SimpleWeightedGraph`).
 - `δ`: Death rate.
-- `μ`: Mutation rate.
+- `μ`: Mean number of mutations per birth event.
 - `β`: Birth rate (default is 1.0).
 - `ρ`: Sampling probability (default is 1.0).
 - `N_τ`: Number of time intervals for integration (default is 1000).
@@ -222,7 +223,7 @@ Infer most likely parameters of a given tree using Nelder-Mead optimization.
 - `tree`: Phylogenetic tree.
 - `ρ`: Sampling probability (default is 1.0).
 - `q_0`: Initial death rate (default is random).
-- `μ_0`: Initial mutation rate (default is random).
+- `μ_0`: Initial mean number of mutations per birth event. (default is random).
 - `ρ_0`: Initial sampling probability (default is random).
 - `return_likelihood`: Return likelihood alongside parameters (default is false).
 - `show_trace`: Show optimization trace (default is false).
