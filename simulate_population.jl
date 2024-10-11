@@ -1,10 +1,4 @@
-using Distributions
-using SparseArrays
-using Graphs, SimpleWeightedGraphs
-
-using Distributions
-using SparseArrays
-using Graphs, SimpleWeightedGraphs
+using Distributions, SparseArrays, Graphs, SimpleWeightedGraphs
 
 # ChatGPT was used to improve docstrings
 

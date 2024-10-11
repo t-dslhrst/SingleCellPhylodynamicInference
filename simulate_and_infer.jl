@@ -21,7 +21,7 @@ function run()
 
     params_inf = infer_parameters(rtree, ρ, N_τ=N_τ, norm=start_norm, i_max=i_max)
     
-    filename = "ρ$(ρ)_N$(N_sample)_q$(q)_mu$(μ).csv"
+    filename = "rho$(ρ)_N$(N_sample)_q$(q)_mu$(μ).csv"
     if !isfile(filename)
         CSV.write(filename, Tables.table(params_inf'), header=["q", "mu"])
     else
