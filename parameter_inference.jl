@@ -246,8 +246,8 @@ function infer_parameters(tree::SimpleWeightedGraph{T, T}, ρ::Real=1.0; q_0::Re
             ρ_ = ρ
         end
         # Return a high value if any parameters are negative or either q or ρ > 1
-        if any(params.<0.0) || any([q_, ρ_].>1.0)
-            return 10000.0 - sum((params.<0.0).*params)*1000.0 + sum(([q_, ρ_].>1.0).*[q_, ρ_])*1000
+        if any(params.<0.0) || ρ_>1.0 || q_>=1.0
+            return 1e9 - sum((params.<0.0).*params)*1e9 + (ρ_>1.0)*ρ_*1e9 + (q_>=1.0)*q_*1e9
         else
         
             # Compute the log-likelihood
