@@ -1,6 +1,6 @@
 # Single Cell Phylodynamic Inference
  
-Implementation of the algorithm published in [[Dieselhorst and Berg 2024](https://doi.org/10.1101/2024.12.05.627005 )] for phylodynamic inference from mutations accumulated under cellular reproduction. All code is written in the Julia programming language and was tested on the Julia version 1.11.1 (but can also be executed with earlier Julia versions).
+Implementation of the algorithm published in [[Dieselhorst and Berg 2024](https://doi.org/10.1101/2024.12.05.627005 )] for phylodynamic inference from mutations accumulated under cellular reproduction. All code is written in the Julia programming language and was tested on Julia version 1.11.1 (but can also be executed with earlier Julia versions).
 
 - `project.toml`and `manifest.toml` list the dependencies and package versions on which the code was developed.
 - `parameter_inference.jl` contains the algorithm.
