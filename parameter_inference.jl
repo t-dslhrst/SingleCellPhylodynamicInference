@@ -222,7 +222,7 @@ Infer most likely parameters of a given tree using Nelder-Mead optimization.
 # Arguments:
 - `tree`: Phylogenetic tree.
 - `ρ`: Sampling probability (default is 1.0).
-- `q_0`: Initial death rate (default is random).
+- `q_0`: Initial relative death rate (default is random).
 - `μ_0`: Initial mean number of mutations per birth event. (default is random).
 - `ρ_0`: Initial sampling probability (default is random).
 - `return_likelihood`: Return likelihood alongside parameters (default is false).
