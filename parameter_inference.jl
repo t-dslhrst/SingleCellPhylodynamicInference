@@ -91,15 +91,16 @@ Poisson distribution for the number of mutations `m` given the number of generat
 - `m`: Number of mutations.
 - `i`: Number of generations.
 - `μ`: Mean mutations per birth event.
+- `μ_e`: Mean amplification error (default is 0)
 
 # Returns:
 - The probability of observing `m` mutations.
 """
-function p_m_given_i(m::T, i::Integer, μ::Real) where T<:Integer
+function p_m_given_i(m::T, i::Integer, μ::Real, μ_e::Real=0) where T<:Integer
     if m <= 20
-        return exp(-(i+1)*μ) * ((i+1)*μ)^m / factorial(m)
+        return exp(-(i+1)*μ-μ_e) * ((i+1)*μ+μ_e)^m / factorial(m)
     else
-        log_result = -(i+1)*μ + m*log((i+1)*μ) - log_facts[m]
+        log_result = -(i+1)*μ-μ_e + m*log((i+1)*μ+μ_e) - log_facts[m]
         return exp(log_result)
     end
 end
@@ -115,17 +116,19 @@ Compute the parameter log-likelihood for a given tree.
 - `μ`: Mean number of mutations per birth event.
 - `β`: Birth rate (default is 1.0).
 - `ρ`: Sampling probability (default is 1.0).
+- `μ_e`: Mean amplification error (default is 0)
 - `N_τ`: Number of time intervals for integration (default is 1000).
 - `τ_max`: Maximum time for integration (computed as τ_max_fact*(log(length(leaves)/ρ)) / (β-δ) if not provided).
 - `τ_max_fact`: Factor to scale maximum time (default is 2.0).
 - `norm`: Normalization factor for p_1(i|τ_s,τ_e) to avoid vanishing probabilities (default is 20.0).
 - `i_max`: Maximum number of generations for calculation (default is 100).
 - `integral`: Integration function (default is `trapezoidal_integral`).
+- `return_without_integrating`: do not integrate over the time of the MRCA (needed if the tree is a subtree of a heterogeneous tree)
 
 # Returns:
 - The log-likelihood value of the parameters for the given tree.
 """
-function compute_param_likelihood(tree::SimpleWeightedGraph{T, T}, δ::Real, μ::Real; β::Real=1.0, ρ::Real=1.0, N_τ::Integer=1000, τ_max::Real=0.0, τ_max_fact::Real=2.0, norm::Real=20.0, i_max::Integer=100, integral::Function=trapezoidal_integral) where T<:Integer
+function compute_param_likelihood(tree::SimpleWeightedGraph{T, T}, δ::Real, μ::Real; β::Real=1.0, ρ::Real=1.0, μ_e::Real=0, N_τ::Integer=1000, τ_max::Real=0.0, τ_max_fact::Real=2.0, norm::Real=20.0, i_max::Integer=100, integral::Function=trapezoidal_integral, return_without_integrating::Bool=false) where T<:Integer
     # Find the leaves
     leaves = findall(x -> x==1, degree(tree))
     # =Find the root and its direct descendants
@@ -155,7 +158,26 @@ function compute_param_likelihood(tree::SimpleWeightedGraph{T, T}, δ::Real, μ:
     mp1_to_ms = zeros(Int64, ms[end]+1) # Vector to connect the number of mutations m to the corresponding element in vector ms. Element mp1_to_ms[m+1] will correspond to the index for m mutations
     for (j, m) in enumerate(ms)
         mp1_to_ms[m+1] = j
-    end    
+    end
+
+    # If amplification errors are considered: repeat the previous steps explicitly for pendant branches
+    if μ_e > 0
+        ms_pendant = zeros(T, length(leaves))
+        for (k, leaf) in enumerate(leaves)
+            ms_pendant[k] = get_weight(tree, leaf, neighbors(tree, leaf)[1])
+        end
+        ms_pendant = sort(unique(ms_pendant))
+
+        mp1_pendant_to_ms = zeros(Int64, ms_pendant[end]+1) # Vector to connect the number of mutations m to the corresponding element in vector ms. Element mp1_to_ms[m+1] will correspond to the index for m mutations
+        for (j, m) in enumerate(ms_pendant)
+            mp1_pendant_to_ms[m+1] = j
+        end
+        # Matrix for the sum over P(m|i)*p_1(i|τ_s, τ_e), i.e. the first two terms in P(ν|τ_s) (eqs. (3) and (4))
+        # but only for the pendant branches
+        P_pendant_branch_only = zeros(Float64, length(ms_pendant), N_τ)
+    end
+
+    
 
     # Matrix for the sum over P(m|i)*p_1(i|τ_s, τ_e), i.e. the first two terms in P(ν|τ_s) (eqs. (3) and (4))
     P_branch_only =  zeros(Float64, length(ms), N_τ, N_τ)
@@ -163,6 +185,12 @@ function compute_param_likelihood(tree::SimpleWeightedGraph{T, T}, δ::Real, μ:
         p_m_given_i_vec = p_m_given_i.(m, i_vec, μ) # Store all values of P(m|i) for the given m
         for n_τ in 1:N_τ # Iterate over all discrete τ_e
             @inbounds P_branch_only[j,n_τ:end,n_τ] .= sum(view(P_lineage_and_gens, :, n_τ:N_τ, n_τ) .* p_m_given_i_vec, dims=1)[1,:]
+        end
+        # Treat pendant branches explicitly if amplification errors are considered. In this case, τ_e=0.
+        if μ_e > 0
+            if m in ms_pendant
+                P_pendant_branch_only[mp1_pendant_to_ms[m+1],:] = sum(view(P_lineage_and_gens, :, :, 1) .* p_m_given_i.(m, i_vec, μ, μ_e), dims=1)[1,:]
+            end
         end
     end
 
@@ -182,7 +210,11 @@ function compute_param_likelihood(tree::SimpleWeightedGraph{T, T}, δ::Real, μ:
     # compute the P(ν|τ_s) for leaves (eq. (3))
     for leaf in leaves
         m = get_weight(tree, leaf, neighbors(tree, leaf)[1])
-        P_clade[leaf,:] .= P_branch_only[mp1_to_ms[m+1], :, 1] .* ρ   # factor of ρ for extant individuals to be sampled
+        if μ_e > 0
+            P_clade[leaf,:] .= P_pendant_branch_only[mp1_pendant_to_ms[m+1],:] .* ρ   # factor of ρ for extant individuals to be sampled
+        else
+            P_clade[leaf,:] .= P_branch_only[mp1_to_ms[m+1], :, 1] .* ρ   # factor of ρ for extant individuals to be sampled
+        end
         remaining[leaf] = false
     end
 
@@ -210,9 +242,13 @@ function compute_param_likelihood(tree::SimpleWeightedGraph{T, T}, δ::Real, μ:
         end
     end
 
-    # Integrate over the two clades descending from the root (eq. (5))
+    # return without integrating over the MRCA time (e.g. for subtree of heterogeneous tree)
+    if return_without_integrating
+        return P_clade[root_desc[1],:] .* P_clade[root_desc[2],:], τ_vec
     # Take the logarithm and renormalize to 1
-    return log(2*β * integral(P_clade[root_desc[1],:] .* P_clade[root_desc[2],:], dτ)) - (nv(tree)-1)*log(norm)
+    else
+        return log(2*β * integral(P_clade[root_desc[1],:] .* P_clade[root_desc[2],:], dτ)) - (nv(tree)-1)*log(norm)
+    end
 end
 
 
@@ -222,27 +258,39 @@ Infer most likely parameters of a given tree using Nelder-Mead optimization.
 # Arguments:
 - `tree`: Phylogenetic tree.
 - `ρ`: Sampling probability (default is 1.0).
+- `μ_e`: Mean of the Poisson distributed amplification error (default is 0)
 - `q_0`: Initial relative death rate (default is random).
 - `μ_0`: Initial mean number of mutations per birth event. (default is random).
 - `ρ_0`: Initial sampling probability (default is random).
+- `μ_e_0`: Initial amplification error mean (default is random).
 - `return_likelihood`: Return likelihood alongside parameters (default is false).
 - `show_trace`: Show optimization trace (default is false).
 - `infer_ρ`: Whether to infer sampling probability `ρ` (default is false).
+- `infer_μ_e`: Whether to infer the mean amplification error `ρ` (default is false).
 - `norm`: Initial normalization factor (default is 20.0).
 - `L_tol`: Tolerance for likelihood convergence (default is 1e-8).
+- `init_simplex`: Initial simplex for the Nelder-Mead optimization.
 - `kwargs`: Additional arguments passed to likelihood computation.
 
 # Returns:
 - The inferred parameters (and optionally the likelihood).
 """
-function infer_parameters(tree::SimpleWeightedGraph{T, T}, ρ::Real=1.0; q_0::Real=rand(), μ_0::Real=2*rand(), ρ_0::Real=rand(), return_likelihood::Bool=false, show_trace::Bool=false, infer_ρ::Bool=false, norm::Real=20.0, L_tol::Real=1e-8, kwargs...) where T<:Integer
+function infer_parameters(tree::SimpleWeightedGraph{T, T}, ρ::Real=1.0, μ_e::Real=0; q_0::Real=rand(), μ_0::Real=2*rand(), ρ_0::Real=rand(), μ_e_0::Real=2*rand(), init_simplex_add::Real=0, init_simplex_fact::Real=0, return_likelihood::Bool=false, show_trace::Bool=false, infer_ρ::Bool=false, infer_μ_e::Bool=false, norm::Real=20.0, L_tol::Real=1e-8, kwargs...) where T<:Integer
     # Define negative log-likelihood function for the optimizer
     function log_likelihood(params::Vector{T}) where T<:Real
         # Unpack the parameters
         if infer_ρ
+            if infer_μ_e
+                q_, μ_, ρ_, μ_e_ = params
+            end
             q_, μ_, ρ_ = params
+            μ_e_ = μ_e
+        elseif infer_μ_e
+            q_, μ_, μ_e_ = params
+            ρ_ = ρ
         else
             q_, μ_ = params
+            μ_e_ = μ_e
             ρ_ = ρ
         end
         # Return a high value if any parameters are negative or either q or ρ > 1
@@ -251,7 +299,7 @@ function infer_parameters(tree::SimpleWeightedGraph{T, T}, ρ::Real=1.0; q_0::Re
         else
         
             # Compute the log-likelihood
-            L = compute_param_likelihood(tree, q_, μ_; ρ=ρ_, norm=norm, kwargs...)
+            L = compute_param_likelihood(tree, q_, μ_; ρ=ρ_, μ_e=μ_e_, norm=norm, kwargs...)
 
             # Check if `norm` needs to be adapted. If so, repeat with the new value.
             while isnan(L) || abs(L)==Inf
@@ -263,7 +311,7 @@ function infer_parameters(tree::SimpleWeightedGraph{T, T}, ρ::Real=1.0; q_0::Re
                     norm *= 0.9
                 end
                 println("norm changed to $(norm)")
-                L = compute_param_likelihood(tree, q_, μ_; ρ=ρ_, norm=norm, kwargs...)
+                L = compute_param_likelihood(tree, q_, μ_; ρ=ρ_, μ_e=μ_e_, norm=norm, kwargs...)
             end
             return - L
         end
@@ -274,9 +322,19 @@ function infer_parameters(tree::SimpleWeightedGraph{T, T}, ρ::Real=1.0; q_0::Re
     if infer_ρ
         push!(params_0, ρ_0)
     end
+    if infer_μ_e
+        push!(params_0, μ_e_0)
+    end
     
     # Optimize using Nelder-Mead
-    result = optimize(params -> log_likelihood(params), params_0, NelderMead(), Optim.Options(g_tol=L_tol, trace_simplex=show_trace, show_trace=show_trace))
+    
+    if init_simplex_add==0 && init_simplex_fact==0
+        result = optimize(params -> log_likelihood(params), params_0, NelderMead(), Optim.Options(g_tol=L_tol, trace_simplex=show_trace, show_trace=show_trace))
+    else
+        result = optimize(params -> log_likelihood(params), params_0, NelderMead(; initial_simplex=Optim.AffineSimplexer(a=init_simplex_add, b=init_simplex_fact)), Optim.Options(g_tol=L_tol, trace_simplex=show_trace, show_trace=show_trace))
+    end
+    
+    
     params_inf = Optim.minimizer(result)
     
     # Return the parameters of the maximum (and the log-likelihood value, if desired)
