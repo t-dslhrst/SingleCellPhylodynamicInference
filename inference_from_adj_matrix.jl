@@ -13,6 +13,7 @@ function run()
     # Initialize a sparse matrix as adjacency matrix of the tree with Float64 weights
     # Subtract a number just below one from all branch lengths from the csv file and add them to the sparse matrix
     weights = convert(SparseMatrixCSC, weights_p1 .- (weights_p1 .> 0) .* 0.9999999999)
+    weights_p1 = nothing
     # Change all elements to integer numbers (still in Float64 format)
     for (i, weight) in enumerate(weights)
         if weight < 1
