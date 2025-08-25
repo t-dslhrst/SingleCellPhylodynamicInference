@@ -27,8 +27,8 @@ function run()
 
     # infer parameters
     params_inf = infer_parameters(tree, ρ, N_τ=N_τ, norm=start_norm, i_max=i_max)
-    
-    filename = "data_example_inference_results.csv"
+
+    filename = "example_data_inference_results.csv"
     if !isfile(filename)
         CSV.write(filename, Tables.table(params_inf'), header=["q", "mu"])
     else
@@ -36,4 +36,4 @@ function run()
     end
 end
 
-@time run()
+run()
