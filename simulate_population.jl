@@ -1,4 +1,6 @@
-using Distributions, SparseArrays, Graphs, SimpleWeightedGraphs
+using Distributions
+using SparseArrays
+using Graphs, SimpleWeightedGraphs
 
 # ChatGPT was used to improve docstrings
 
@@ -317,4 +319,142 @@ function reduce_tree(graph_::SimpleWeightedGraph{T, T}, leaves_::Array{T}) where
     new_weights[new_weights .>= 1] .= floor.(new_weights[new_weights .>= 1])
     
     return SimpleWeightedGraph(convert(SparseMatrixCSC{T, T}, new_weights)), leaves
+end
+
+
+
+"""
+Finds the direct descendants (children) of a given node in a rooted tree.
+
+# Arguments:
+- `tree`: A `SimpleWeightedGraph` representing the phylogenetic tree.
+- `node`: The node (vertex) whose descendants are to be found.
+
+# Returns:
+- A vector of node IDs representing the descendants of the given node.
+  Assumes that descendants have higher node IDs than their parents.
+"""
+function find_descendants(tree, node::Integer)
+    nb = neighbors(tree, node)
+    return nb[nb .> node]
+end
+
+
+"""
+Finds all nodes in the subtree rooted at a given node.
+
+# Arguments:
+- `tree`: A `SimpleWeightedGraph` representing the phylogenetic tree.
+- `root_subtree`: The node ID of the root of the desired subtree.
+
+# Returns:
+- A vector of node IDs in the subtree rooted at `root_subtree`, including the root itself.
+"""
+function find_subtree(tree, root_subtree)
+    vlist = Vector{Int64}(undef,0)
+    add = [root_subtree]
+    while length(add)>0
+        node = add[1]
+        add = vcat(add, find_descendants(tree,node))
+        push!(vlist, add[1])
+        popfirst!(add)
+    end
+    return vlist
+end
+
+
+"""
+Finds the Most Recent Common Ancestor (MRCA) of a set of nodes in a rooted tree.
+
+# Arguments:
+- `tree`: A `SimpleWeightedGraph` representing the phylogenetic tree.
+- `node_list`: A vector of node IDs for which the MRCA is to be found.
+
+# Returns:
+- The node ID of the MRCA of the nodes in `node_list`.
+"""
+function find_MRCA(tree::SimpleWeightedGraph{T, T}, node_list) where T <: Integer
+    # choose first node of the list, set it as preliminary MRCA and find its path to the root
+    node = node_list[1]
+    MRCA = node
+    path_1 = [node]
+    while node > 1
+        node = neighbors(tree, node)[1]
+        push!(path_1, node)
+    end
+    # iterate over all other nodes in the list and find the first intersection of their path to the root with the path_1
+    for i in node_list[2:end]
+        node = i
+        while !(node in path_1)
+            node = neighbors(tree, node)[1]
+        end
+        if node < MRCA
+            MRCA = node
+        end
+    end
+    return MRCA
+end
+
+
+"""
+Simulates allelic dropout in a phylogenetic tree based on a probabilistic model.
+
+Each mutation in each sample can be lost with probability `σ`. If lost, the mutation
+can either disappear (if not detected in any sample) or be reassigned tor the branch above the MRCA
+of all samples where the mutation is still detected.
+If a mutation is only detected in one sample, it is assigned to the pendant branch of that sample.
+
+# Arguments:
+- `tree`: A `SimpleWeightedGraph` representing the original phylogenetic tree.
+- `σ`: Dropout probability (between 0 and 1).
+
+# Returns:
+- A new `SimpleWeightedGraph` with updated mutation weights after allelic dropout.
+"""
+function simulate_allelic_dropout(tree::SimpleWeightedGraph{T, T}, σ::Real) where T <: Integer
+    # initialize tree with weights of zero
+    weights0 = convert(SparseMatrixCSC{Float16, T}, copy(tree.weights))
+    weights0[weights0 .> 0] .= 0.1
+    weights0[weights0 .>= 0] .= floor.(weights0[weights0 .>= 0])
+    tree_post_ad = SimpleWeightedGraph(convert(SparseMatrixCSC{T, T}, weights0))
+    weights0 = nothing
+    # iterate over all branches and all mutations along them
+    for node in 2:nv(tree)
+        # identify predecessor and descendants of the node
+        predecessor = neighbors(tree, node)[1]
+        node_is_sample = degree(tree)[node] == 1
+        mutations_along_branch = tree.weights[node, predecessor]
+        if node_is_sample
+            for _ in 1:mutations_along_branch
+                # add mutation to the pendant branch with probability 1-σ
+                if rand() < 1-σ
+                    tree_post_ad.weights[node, predecessor] += 1
+                    tree_post_ad.weights[predecessor, node] += 1
+                end
+            end
+        else
+            # make list of descendants that inherit the mutation
+            descendants = find_descendants(tree, node)
+            for _ in 1:mutations_along_branch
+                # make list of descendants where the mutation is detected
+                descendants_with_mutation = Vector{T}(undef,0)
+                for desc in descendants
+                    if rand() < 1-σ
+                        push!(descendants_with_mutation, desc)
+                    end
+                end
+                # if only found in one sample, add mutation to the pendant branch
+                if length(descendants_with_mutation) == 1
+                    tree_post_ad.weights[descendants_with_mutation[1], neighbors(tree, descendants_with_mutation[1])[1]] += 1
+                    tree_post_ad.weights[neighbors(tree, descendants_with_mutation[1])[1], descendants_with_mutation[1]] += 1
+                # if found in multiple samples, add mutation to the branch above their MRCA
+                elseif length(descendants_with_mutation) > 1
+                    mrca = find_MRCA(tree, descendants_with_mutation)
+                    tree_post_ad.weights[mrca, neighbors(tree, mrca)[1]] += 1
+                    tree_post_ad.weights[neighbors(tree, mrca)[1], mrca] += 1
+                end
+            end
+        end
+    end
+    return tree_post_ad
 end
