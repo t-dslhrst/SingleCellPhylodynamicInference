@@ -18,8 +18,8 @@ Our implementations provide docstrings for all functions. Here, we introduce the
 ### Likelihood computation
 ```julia
 function compute_param_likelihood(tree::SimpleWeightedGraph{T, T}, δ::Real, μ::Real;
-β::Real=1.0, ρ::Real=1.0, μ_e::Real=0, N_τ::Integer=1000, τ_max::Real=0.0, τ_max_fact::Real=2.0, i_max::Integer=100,
-norm::Real=20.0,integral::Function=trapezoidal_integral, return_without_integrating::Bool=false) where T<:Integer
+   β::Real=1.0, ρ::Real=1.0, μ_e::Real=0, N_τ::Integer=1000, τ_max::Real=0.0, τ_max_fact::Real=2.0, i_max::Integer=100,
+   norm::Real=20.0,integral::Function=trapezoidal_integral, return_without_integrating::Bool=false) where T<:Integer
 ```
 Computes the parameter log-likelihood for a given tree.
 
@@ -44,8 +44,8 @@ Computes the parameter log-likelihood for a given tree.
 ### Parameter inference
 ```julia
 function infer_parameters(tree::SimpleWeightedGraph{T, T}, ρ::Real=1.0, μ_e::Real=0;
-q_0::Real=rand(), μ_0::Real=2*rand(), ρ_0::Real=rand(), μ_e_0::Real=2*rand(),
-infer_ρ::Bool=false, infer_μ_e::Bool=false, return_likelihood::Bool=false, show_trace::Bool=false, norm::Real=20.0, L_tol::Real=1e-8, kwargs...) where T<:Integer
+   q_0::Real=rand(), μ_0::Real=2*rand(), ρ_0::Real=rand(), μ_e_0::Real=2*rand(),
+   infer_ρ::Bool=false, infer_μ_e::Bool=false, return_likelihood::Bool=false, show_trace::Bool=false, norm::Real=20.0, L_tol::Real=1e-8, kwargs...) where T<:Integer
 ```
 Infers most likely parameters of a given tree using Nelder-Mead optimization.
 
