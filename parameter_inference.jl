@@ -261,21 +261,20 @@ Infer most likely parameters of a given tree using Nelder-Mead optimization.
 - `μ_e`: Mean of the Poisson distributed amplification error (default is 0)
 - `q_0`: Initial relative death rate (default is random).
 - `μ_0`: Initial mean number of mutations per birth event. (default is random).
-- `ρ_0`: Initial sampling probability (default is random).
+- `ρ_0`: Initial sampling probability, if inferred (default is random).
 - `μ_e_0`: Initial amplification error mean (default is random).
-- `return_likelihood`: Return likelihood alongside parameters (default is false).
-- `show_trace`: Show optimization trace (default is false).
 - `infer_ρ`: Whether to infer sampling probability `ρ` (default is false).
 - `infer_μ_e`: Whether to infer the mean amplification error `ρ` (default is false).
+- `return_likelihood`: Return likelihood alongside parameters (default is false).
+- `show_trace`: Show optimization trace (default is false).
 - `norm`: Initial normalization factor (default is 20.0).
 - `L_tol`: Tolerance for likelihood convergence (default is 1e-8).
-- `init_simplex`: Initial simplex for the Nelder-Mead optimization.
 - `kwargs`: Additional arguments passed to likelihood computation.
 
 # Returns:
-- The inferred parameters (and optionally the likelihood).
+- The inferred parameters (and optionally their likelihood).
 """
-function infer_parameters(tree::SimpleWeightedGraph{T, T}, ρ::Real=1.0, μ_e::Real=0; q_0::Real=rand(), μ_0::Real=2*rand(), ρ_0::Real=rand(), μ_e_0::Real=2*rand(), init_simplex_add::Real=0, init_simplex_fact::Real=0, return_likelihood::Bool=false, show_trace::Bool=false, infer_ρ::Bool=false, infer_μ_e::Bool=false, norm::Real=20.0, L_tol::Real=1e-8, kwargs...) where T<:Integer
+function infer_parameters(tree::SimpleWeightedGraph{T, T}, ρ::Real=1.0, μ_e::Real=0; q_0::Real=rand(), μ_0::Real=2*rand(), ρ_0::Real=rand(), μ_e_0::Real=2*rand(), infer_ρ::Bool=false, infer_μ_e::Bool=false, return_likelihood::Bool=false, show_trace::Bool=false, norm::Real=20.0, L_tol::Real=1e-8, kwargs...) where T<:Integer
     # Define negative log-likelihood function for the optimizer
     function log_likelihood(params::Vector{T}) where T<:Real
         # Unpack the parameters
