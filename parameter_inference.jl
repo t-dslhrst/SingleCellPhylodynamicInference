@@ -123,12 +123,11 @@ Compute the parameter log-likelihood for a given tree.
 - `i_max`: Maximum number of generations for calculation (default is 100).
 - `norm`: Normalization factor for p_1(i|τ_s,τ_e) to avoid vanishing probabilities (default is 20.0).
 - `integral`: Integration function (default is `trapezoidal_integral`).
-- `return_without_integrating`: do not integrate over the time of the MRCA (needed if the tree is a subtree of a heterogeneous tree)
 
 # Returns:
 - The log-likelihood value of the parameters for the given tree.
 """
-function compute_param_likelihood(tree::SimpleWeightedGraph{T, T}, δ::Real, μ::Real; β::Real=1.0, ρ::Real=1.0, μ_e::Real=0, N_τ::Integer=1000, τ_max::Real=0.0, τ_max_fact::Real=2.0, i_max::Integer=100, norm::Real=20.0, integral::Function=trapezoidal_integral, return_without_integrating::Bool=false) where T<:Integer
+function compute_param_likelihood(tree::SimpleWeightedGraph{T, T}, δ::Real, μ::Real; β::Real=1.0, ρ::Real=1.0, μ_e::Real=0, N_τ::Integer=1000, τ_max::Real=0.0, τ_max_fact::Real=2.0, i_max::Integer=100, norm::Real=20.0, integral::Function=trapezoidal_integral) where T<:Integer
     # Find the leaves
     leaves = findall(x -> x==1, degree(tree))
     # =Find the root and its direct descendants
@@ -242,13 +241,8 @@ function compute_param_likelihood(tree::SimpleWeightedGraph{T, T}, δ::Real, μ:
         end
     end
 
-    # return without integrating over the MRCA time (e.g. for subtree of heterogeneous tree)
-    if return_without_integrating
-        return P_clade[root_desc[1],:] .* P_clade[root_desc[2],:], τ_vec
     # Take the logarithm and renormalize to 1
-    else
-        return log(2*β * integral(P_clade[root_desc[1],:] .* P_clade[root_desc[2],:], dτ)) - (nv(tree)-1)*log(norm)
-    end
+    return log(2*β * integral(P_clade[root_desc[1],:] .* P_clade[root_desc[2],:], dτ)) - (nv(tree)-1)*log(norm)
 end
 
 
