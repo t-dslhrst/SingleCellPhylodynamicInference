@@ -17,7 +17,9 @@ In order to use this code for inference from empirical data, the phylogenetic tr
 The likelihood computation and the inference scheme can be found in `parameter_inference.jl`.
 ### Likelihood computation
 ```julia
-function compute_param_likelihood(tree::SimpleWeightedGraph{T, T}, δ::Real, μ::Real; β::Real=1.0, ρ::Real=1.0, μ_e::Real=0, N_τ::Integer=1000, τ_max::Real=0.0, τ_max_fact::Real=2.0, norm::Real=20.0, i_max::Integer=100, integral::Function=trapezoidal_integral, return_without_integrating::Bool=false) where T<:Integer
+function compute_param_likelihood(tree::SimpleWeightedGraph{T, T}, δ::Real, μ::Real;
+β::Real=1.0, ρ::Real=1.0, μ_e::Real=0, N_τ::Integer=1000, τ_max::Real=0.0, τ_max_fact::Real=2.0, i_max::Integer=100,
+norm::Real=20.0,integral::Function=trapezoidal_integral, return_without_integrating::Bool=false) where T<:Integer
 ```
 Computes the parameter log-likelihood for a given tree.
 
@@ -31,8 +33,8 @@ Computes the parameter log-likelihood for a given tree.
 - `N_τ`: Number of time intervals for integration (default is 1000).
 - `τ_max`: Maximum time for integration (computed as τ_max_fact*(log(length(leaves)/ρ)) / (β-δ) if not provided).
 - `τ_max_fact`: Factor to scale maximum time (default is 2.0).
-- `norm`: Normalization factor for p_1(i|τ_s,τ_e) to avoid vanishing probabilities (default is 20.0).
 - `i_max`: Maximum number of generations for calculation (default is 100).
+- `norm`: Normalization factor for p_1(i|τ_s,τ_e) to avoid vanishing probabilities (default is 20.0).
 - `integral`: Integration function (default is `trapezoidal_integral`).
 - `return_without_integrating`: do not integrate over the time of the MRCA (needed if the tree is a subtree of a heterogeneous tree)
 
@@ -41,7 +43,9 @@ Computes the parameter log-likelihood for a given tree.
 
 ### Parameter inference
 ```julia
-function infer_parameters(tree::SimpleWeightedGraph{T, T}, ρ::Real=1.0, μ_e::Real=0; q_0::Real=rand(), μ_0::Real=2*rand(), ρ_0::Real=rand(), μ_e_0::Real=2*rand(), init_simplex_add::Real=0, init_simplex_fact::Real=0, return_likelihood::Bool=false, show_trace::Bool=false, infer_ρ::Bool=false, infer_μ_e::Bool=false, norm::Real=20.0, L_tol::Real=1e-8, kwargs...) where T<:Integer
+function infer_parameters(tree::SimpleWeightedGraph{T, T}, ρ::Real=1.0, μ_e::Real=0;
+q_0::Real=rand(), μ_0::Real=2*rand(), ρ_0::Real=rand(), μ_e_0::Real=2*rand(), init_simplex_add::Real=0, init_simplex_fact::Real=0,
+return_likelihood::Bool=false, show_trace::Bool=false, infer_ρ::Bool=false, infer_μ_e::Bool=false, norm::Real=20.0, L_tol::Real=1e-8, kwargs...) where T<:Integer
 ```
 Infers most likely parameters of a given tree using Nelder-Mead optimization.
 
