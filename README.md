@@ -14,7 +14,7 @@ In order to use this code for inference from empirical data, the phylogenetic tr
 - `inference_from_adj_matrix.jl` shows how to perform inference based on a tree saved as as an adjacency matrix in CSV format (with branch lengths increased by one mutation). Inference results are saved in a CSV file. Running this code usually takes around three minutes (4.4GHz clock speed).
 
 ## Main functions
-The likelihood computation and the inference scheme can be found in `parameter_inference.jl`.
+Our implementations provide docstrings for all functions. Here, we introduce the two main functions, i.e. for the likelihood computation and the parameter inference, which can be found in `parameter_inference.jl`.
 ### Likelihood computation
 ```julia
 function compute_param_likelihood(tree::SimpleWeightedGraph{T, T}, δ::Real, μ::Real;
